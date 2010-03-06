@@ -12,6 +12,7 @@ obj-pci-$(CONFIG_ARCH_ADI_COYOTE)	+= coyote-pci.o
 obj-pci-$(CONFIG_MACH_GTWX5715)		+= gtwx5715-pci.o
 obj-pci-$(CONFIG_MACH_NSLU2)		+= nslu2-pci.o
 obj-pci-$(CONFIG_MACH_NAS100D)		+= nas100d-pci.o
+obj-pci-$(CONFIG_ARCH_NSBXXX)		+= nsb-pci.o
 obj-pci-$(CONFIG_MACH_DSMG600)		+= dsmg600-pci.o
 obj-pci-$(CONFIG_MACH_GATEWAY7001)	+= gateway7001-pci.o
 obj-pci-$(CONFIG_MACH_WG302V2)		+= wg302v2-pci.o

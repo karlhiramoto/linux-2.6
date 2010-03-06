@@ -267,6 +267,20 @@ MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 MACHINE_END
 #endif
 
+#ifdef CONFIG_MACH_NSB
+MACHINE_START(NSB, "IronGate NetSurviBox Network Platform")
+	/* Maintainer: Karl Hiramoto <karl@hiramoto.org>  */
+	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
+	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
+	.map_io		= ixp4xx_map_io,
+	.init_irq	= ixp4xx_init_irq,
+	.timer		= &ixp4xx_timer,
+	.boot_params	= 0x0100,
+	.init_machine	= ixdp425_init,
+MACHINE_END
+
+#endif
+
 #ifdef CONFIG_MACH_IXDP465
 MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */

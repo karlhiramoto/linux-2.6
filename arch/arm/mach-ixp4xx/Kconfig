@@ -153,6 +153,62 @@ config CPU_IXP43X
 	depends on MACH_KIXRP435
 	default y
 
+config ARCH_NSBXXX
+	bool
+	default n
+
+config MACH_NSB
+	bool
+	prompt "IronGate S.L. NetSurvibox 266"
+	depends on ARCH_IXP4XX
+	select PCI
+	select ARCH_NSBXXX
+	help
+		Say 'Y' here if you want your kernel to support Iron Gate S.L.'s
+		NetSurvibox 266  see http://www.iron-gate.net/
+
+		IXP425 - 266mhz
+		64MB SDRAM
+		8MB Flash
+		miniPCI slot 0 available.
+		Realtech 81XX on PCI (uses 8139too)
+		HighPoint IDE controller for Compat Flash on PCI bus (hpt371)
+		Via USB EHCI on PCI bus
+		NPE-B is connected to a ethernet port
+		NPE-C / Utopia bus is on module connector
+		"Console" UART is available on DB-9 ttyS1
+
+
+config MACH_NSB400
+	bool
+	prompt "IronGate S.L. NetSurvibox 400"
+	depends on ARCH_IXP4XX
+	select PCI
+	select ARCH_NSBXXX
+	help
+	Say 'Y' here if you want your kernel to support Iron Gate S.L.'s
+	NetSurvibox 667  see http://www.iron-gate.net/
+
+	IXP435 - 400mhz
+	128MB RAM
+	16MB Flash
+
+
+config MACH_NSB667
+	bool
+	prompt "IronGate S.L. NetSurvibox 667"
+	depends on ARCH_IXP4XX
+	select PCI
+	select ARCH_NSBXXX
+	help
+	Say 'Y' here if you want your kernel to support Iron Gate S.L.'s
+	NetSurvibox 667  see http://www.iron-gate.net/
+
+	IXP435 - 667mhz
+	256MB RAM
+	16MB Flash
+
+
 config MACH_GTWX5715
 	bool "Gemtek WX5715 (Linksys WRV54G)"
 	depends on ARCH_IXP4XX
