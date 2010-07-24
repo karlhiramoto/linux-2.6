@@ -42,6 +42,7 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_queue.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
@@ -632,6 +633,11 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 		nf_ct_zone->id = zone;
 	}
 #endif
+
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS)
+	if (!nf_ct_ext_add(ct, NF_CT_EXT_QUEUE, gfp))
+		goto out_free;
+#endif
 	/*
 	 * changes to lookup keys must be done before setting refcnt to 1
 	 */
@@ -639,11 +645,14 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 	atomic_set(&ct->ct_general.use, 1);
 	return ct;
 
-#ifdef CONFIG_NF_CONNTRACK_ZONES
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS) \
+	|| defined(CONFIG_NF_CONNTRACK_ZONES)
+
 out_free:
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
 	return ERR_PTR(-ENOMEM);
 #endif
+
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
@@ -1010,6 +1019,14 @@ static struct nf_ct_ext_type nf_ct_zone_extend __read_mostly = {
 };
 #endif
 
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS)
+static struct nf_ct_ext_type nf_conntrack_queue_extend __read_mostly = {
+	.len    = sizeof(struct nf_conntrack_queue),
+	.align  = __alignof__(struct nf_conntrack_queue),
+	.id     = NF_CT_EXT_QUEUE,
+};
+#endif
+
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -1194,6 +1211,11 @@ static void nf_conntrack_cleanup_init_net(void)
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	nf_ct_extend_unregister(&nf_ct_zone_extend);
 #endif
+
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS)
+	nf_ct_extend_unregister(&nf_conntrack_queue_extend);
+#endif
+
 }
 
 static void nf_conntrack_cleanup_net(struct net *net)
@@ -1362,6 +1384,15 @@ static int nf_conntrack_init_init_net(void)
 	if (ret < 0)
 		goto err_extend;
 #endif
+
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS)
+	ret = nf_ct_extend_register(&nf_conntrack_queue_extend);
+	if (ret < 0) {
+		printk(KERN_ERR "nfnetlink_queue: failed to register CT ext.\n");
+		goto err_extend_queue;
+	}
+#endif
+
 	/* Set up fake conntrack: to never be deleted, not in any hashes */
 #ifdef CONFIG_NET_NS
 	nf_conntrack_untracked.ct_net = &init_net;
@@ -1372,7 +1403,11 @@ static int nf_conntrack_init_init_net(void)
 
 	return 0;
 
+#if defined(CONFIG_NF_QUEUE_CONNBYTES_BYPASS)
+err_extend_queue:
+#endif
 #ifdef CONFIG_NF_CONNTRACK_ZONES
+	nf_ct_extend_unregister(&nf_ct_zone_extend);
 err_extend:
 	nf_conntrack_helper_fini();
 #endif
