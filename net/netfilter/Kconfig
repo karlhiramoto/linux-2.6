@@ -11,7 +11,18 @@ config NETFILTER_NETLINK_QUEUE
 	help
 	  If this option is enabled, the kernel will include support
 	  for queueing packets via NFNETLINK.
-	  
+
+config NF_QUEUE_CONNBYTES_BYPASS
+	  bool  'NF_QUEUE bypass support'
+	  depends on NF_CONNTRACK
+	  depends on NETFILTER_NETLINK_QUEUE
+	  help
+	  This option allows user-space to tell nfnetlink_queue so allow X bytes
+	  to bypass the queue with the ACCEPT verdict.
+	  In conditions where you know X bytes must be accepted, it avoid the
+	  copy to user-space and can be over a 2X speed improvement.
+
+
 config NETFILTER_NETLINK_LOG
 	tristate "Netfilter LOG over NFNETLINK interface"
 	default m if NETFILTER_ADVANCED=n
