@@ -41,6 +41,7 @@ enum nfqnl_attr_type {
 	NFQA_IFINDEX_PHYSOUTDEV,	/* __u32 ifindex */
 	NFQA_HWADDR,			/* nfqnl_msg_packet_hw */
 	NFQA_PAYLOAD,			/* opaque data payload */
+	NFQA_ACCEPT_CONNBYTES, /* Accept the next N bytes, bypassing queue  */
 
 	__NFQA_MAX
 };
