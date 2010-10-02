@@ -33,6 +33,7 @@
  * These hooks are not yet available in ppp_generic
  */
 
+#define DEBUG 1
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/module.h>
@@ -46,6 +47,7 @@
 #include <linux/if_ppp.h>
 #include <linux/ppp_channel.h>
 #include <linux/atmppp.h>
+#include <linux/list.h>
 
 #include "common.h"
 
@@ -57,6 +59,7 @@ enum pppoatm_encaps {
 
 struct pppoatm_vcc {
 	struct atm_vcc	*atmvcc;	/* VCC descriptor */
+	struct list_head list_head; /* head of list of all pppoatm VCCs */
 	void (*old_push)(struct atm_vcc *, struct sk_buff *);
 	void (*old_pop)(struct atm_vcc *, struct sk_buff *);
 					/* keep old push/pop for detaching */
@@ -72,6 +75,10 @@ struct pppoatm_vcc {
  */
 static const unsigned char pppllc[6] = { 0xFE, 0xFE, 0x03, 0xCF, 0xC0, 0x21 };
 #define LLC_LEN		(4)
+
+/* List of all pppoa VCCs */
+static LIST_HEAD(pppoa_vccs);
+static DEFINE_RWLOCK(devs_lock);
 
 static inline struct pppoatm_vcc *atmvcc_to_pvcc(const struct atm_vcc *atmvcc)
 {
@@ -113,6 +120,46 @@ static void pppoatm_pop(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	tasklet_schedule(&pvcc->wakeup_tasklet);
 }
 
+
+/*
+ * Callback when there is an event in the atm layer. for now carrier on/off
+ */
+static int pppoatm_dev_event(struct notifier_block *this, unsigned long event,
+		 void *arg)
+{
+	struct atm_dev *atm_dev = arg;
+	struct list_head *lh;
+	struct pppoatm_vcc *pvcc;
+	struct atm_vcc *atm_vcc;
+	unsigned long flags;
+
+	pr_debug("%s:%d devent=%ld dev=%p\n", __func__, __LINE__, event, atm_dev);
+
+	read_lock_irqsave(&devs_lock, flags);
+	list_for_each(lh, &pppoa_vccs) {
+		pvcc = list_entry(lh, struct pppoatm_vcc, list_head);
+		atm_vcc = pvcc->atmvcc;
+		pr_debug("%s:%d atm_vcc=%p pvcc->atmvcc=%p\n", __func__, __LINE__, atm_vcc, pvcc->atmvcc);
+		if (atm_vcc && atm_vcc->dev == atm_dev) {
+
+			if (atm_vcc->dev->signal == ATM_PHY_SIG_LOST) {
+				pr_debug("%s:%d pppoa Carrier off\n", __func__, __LINE__);
+				ppp_channel_carrier_off(&pvcc->chan);
+			} else {
+				pr_debug("%s:%d pppoa Carrier on\n", __func__, __LINE__);
+				ppp_channel_carrier_on(&pvcc->chan);
+			}
+		}
+	}
+	read_unlock_irqrestore(&devs_lock, flags);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block atm_dev_notifier = {
+	.notifier_call = pppoatm_dev_event,
+};
+
 /*
  * Unbind from PPP - currently we only do this when closing the socket,
  * but we could put this into an ioctl if need be
@@ -120,7 +167,14 @@ static void pppoatm_pop(struct atm_vcc *atmvcc, struct sk_buff *skb)
 static void pppoatm_unassign_vcc(struct atm_vcc *atmvcc)
 {
 	struct pppoatm_vcc *pvcc;
+	unsigned long flags;
+
 	pvcc = atmvcc_to_pvcc(atmvcc);
+
+	write_lock_irqsave(&devs_lock, flags);
+	list_del(&pvcc->list_head);
+	write_unlock_irqrestore(&devs_lock, flags);
+
 	atmvcc->push = pvcc->old_push;
 	atmvcc->pop = pvcc->old_pop;
 	tasklet_kill(&pvcc->wakeup_tasklet);
@@ -270,6 +324,7 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	struct atm_backend_ppp be;
 	struct pppoatm_vcc *pvcc;
 	int err;
+	unsigned long flags;
 	/*
 	 * Each PPPoATM instance has its own tasklet - this is just a
 	 * prototypical one used to initialize them
@@ -301,6 +356,11 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	atmvcc->user_back = pvcc;
 	atmvcc->push = pppoatm_push;
 	atmvcc->pop = pppoatm_pop;
+
+	write_lock_irqsave(&devs_lock, flags);
+	list_add_tail(&pvcc->list_head, &pppoa_vccs);
+	write_unlock_irqrestore(&devs_lock, flags);
+
 	__module_get(THIS_MODULE);
 	return 0;
 }
@@ -346,12 +406,15 @@ static struct atm_ioctl pppoatm_ioctl_ops = {
 static int __init pppoatm_init(void)
 {
 	register_atm_ioctl(&pppoatm_ioctl_ops);
+	register_atmdevice_notifier(&atm_dev_notifier);
+
 	return 0;
 }
 
 static void __exit pppoatm_exit(void)
 {
 	deregister_atm_ioctl(&pppoatm_ioctl_ops);
+	unregister_atmdevice_notifier(&atm_dev_notifier);
 }
 
 module_init(pppoatm_init);
