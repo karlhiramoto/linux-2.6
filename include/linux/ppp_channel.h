@@ -75,6 +75,9 @@ extern int ppp_unit_number(struct ppp_channel *);
 /* Get the device name associated with a channel, or NULL if none */
 extern char *ppp_dev_name(struct ppp_channel *);
 
+extern void ppp_channel_carrier_on(struct ppp_channel *);
+extern void ppp_channel_carrier_off(struct ppp_channel *);
+
 /*
  * SMP locking notes:
  * The channel code must ensure that when it calls ppp_unregister_channel,

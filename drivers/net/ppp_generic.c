@@ -2907,6 +2907,41 @@ static void *unit_find(struct idr *p, int n)
 	return idr_find(p, n);
 }
 
+void ppp_channel_carrier_on(struct ppp_channel *chan)
+{
+	unsigned long flags;
+	struct channel *pch = chan->ppp;
+
+	read_lock_irqsave(&pch->upl, flags);
+
+	pr_info("%s:%d pch->ppp=%p\n", __func__, __LINE__, pch->ppp);
+	/* if connected */
+	if (pch->ppp) {
+		pr_info("%s:%d dev=%p\n", __func__, __LINE__, pch->ppp->dev);
+		netif_carrier_on(pch->ppp->dev);
+	}
+	read_unlock_irqrestore(&pch->upl, flags);
+}
+EXPORT_SYMBOL(ppp_channel_carrier_on);
+
+void ppp_channel_carrier_off(struct ppp_channel *chan)
+{
+	unsigned long flags;
+	struct channel *pch = chan->ppp;
+
+	read_lock_irqsave(&pch->upl, flags);
+
+	pr_info("%s:%d pch->ppp=%p\n", __func__, __LINE__, pch->ppp);
+	/* if connected */
+	if (pch->ppp) {
+		pr_info("%s:%d dev=%p\n", __func__, __LINE__, pch->ppp->dev);
+		netif_carrier_off(pch->ppp->dev);
+	}
+
+	read_unlock_irqrestore(&pch->upl, flags);
+}
+EXPORT_SYMBOL(ppp_channel_carrier_off);
+
 /* Module/initialization stuff */
 
 module_init(ppp_init);
